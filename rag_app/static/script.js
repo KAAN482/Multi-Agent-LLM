@@ -6,6 +6,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('drop-zone');
     const fileList = document.getElementById('file-list');
     const clearDbBtn = document.getElementById('clear-db-btn');
+    const logBody = document.getElementById('log-body');
+
+    function addLog(text, type = 'system') {
+        const div = document.createElement('div');
+        div.classList.add('log-entry', type);
+        div.textContent = `> ${text}`;
+        logBody.appendChild(div);
+        logBody.scrollTop = logBody.scrollHeight;
+    }
 
     // --- Chat Functions ---
 
@@ -43,25 +52,52 @@ document.addEventListener('DOMContentLoaded', () => {
         chatContainer.scrollTop = chatContainer.scrollHeight;
 
         try {
-            // Call Agent API
-            const response = await fetch('/api/agent', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: text })
-            });
+            // SSE (Server-Sent Events) ile Bağlan
+            const eventSource = new EventSource(`/api/agent/stream?query=${encodeURIComponent(text)}`);
+            let finalAnswerReceived = false;
 
-            const data = await response.json();
+            eventSource.onmessage = function (event) {
+                const data = JSON.parse(event.data);
 
-            // Remove loading
-            document.getElementById('loading-msg').remove();
+                // Log alanına yaz (Eğer UI'da varsa, yoksa konsola)
+                console.log("SSE Event:", data);
 
-            if (response.ok) {
-                addMessage(data.answer, 'bot');
-                // Optional: Show stats if needed (check console)
-                console.log("Stats:", data.stats);
-            } else {
-                addMessage(`❌ Hata: ${data.detail || 'Bilinmeyen bir hata oluştu.'}`, 'bot');
-            }
+                if (data.event === "node_update") {
+                    // Kullanıcıya ara bilgi ver (Opsiyonel: Status bar update)
+                    const nodeName = data.node;
+                    // loadingDiv içeriğini güncelle
+                    loadingDiv.innerHTML = `<i>${nodeName} çalışıyor... ⚙️</i>`;
+                    addLog(`${nodeName} tamamlandı.`, 'node');
+
+                    // Eğer içerik varsa ve kullanıcıya göstermek istiyorsak:
+                    // addMessage(`[${nodeName}]: ${data.content.substring(0, 100)}...`, 'bot');
+                } else if (data.event === "system") {
+                    addLog(data.content, 'system');
+                } else if (data.event === "final_result") {
+                    // Final cevabı göster
+                    document.getElementById('loading-msg').remove();
+                    addMessage(data.content, 'bot');
+                    addLog("Yanıt alındı.", 'system');
+                    finalAnswerReceived = true;
+                    // Bağlantıyı kapat
+                    eventSource.close();
+                } else if (data.event === "error") {
+                    document.getElementById('loading-msg').remove();
+                    addMessage(`❌ Hata: ${data.content}`, 'bot');
+                    addLog(`HATA: ${data.content}`, 'error');
+                    eventSource.close();
+                }
+            };
+
+            eventSource.onerror = function (err) {
+                console.error("EventSource failed:", err);
+                if (!finalAnswerReceived) {
+                    // Status: DONE gelmeden koptuysa
+                    document.getElementById('loading-msg').remove();
+                    addMessage("❌ Bağlantı koptu.", 'bot');
+                }
+                eventSource.close();
+            };
 
         } catch (err) {
             document.getElementById('loading-msg').remove();

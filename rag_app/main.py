@@ -2,10 +2,12 @@ import os
 import shutil
 import io
 from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
+import json
+import asyncio
 
 # Servisler ve Yardımcılar
 from rag_app.services.rag_engine import process_query
@@ -14,7 +16,7 @@ from rag_app.services.embedding_service import embedding_service
 from rag_app.utils.text_processing import extract_text_from_file, chunk_text
 
 # Multi-Agent Import
-from src.orchestrator.graph import run_multi_agent
+from src.orchestrator.graph import run_multi_agent, stream_multi_agent
 
 # FastAPI Uygulaması
 app = FastAPI(title="Multi-Agent LLM Asistanı", description="RAG ve Çoklu Ajan Destekli Yapay Zeka Asistanı", version="2.0.0")
@@ -36,17 +38,12 @@ class FileListResponse(BaseModel):
 @app.post("/api/agent")
 async def run_agent(request: AgentRequest):
     """
-    Çoklu Ajan Sistemi Endpoint'i:
-    - Kullanıcı sorgusunu alır.
-    - LangGraph tabanlı çoklu ajan sistemini çalıştırır.
-    - Sonucu döndürür.
+    Standart Endpoint (Eski - Tek Seferde Yanıt)
     """
     try:
         result = await run_multi_agent(request.query, mode=request.mode)
-        # Frontend için temizlenmiş yanıtı hazırla
         answer = result.get("answer", "Yanıt yok.")
         
-        # Eğer yanıt liste/dict ise (LangChain artefaktı), string'e çevir
         if isinstance(answer, list) and len(answer) > 0 and isinstance(answer[0], dict):
             answer = answer[0].get("text", str(answer))
             
@@ -60,6 +57,27 @@ async def run_agent(request: AgentRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/agent/stream")
+async def stream_agent(query: str):
+    """
+    SSE Endpoint (Server-Sent Events)
+    Canlı log akışı sağlar.
+    Kullanım: GET /api/agent/stream?query=...
+    """
+    async def event_generator():
+        try:
+            yield f"data: {json.dumps({'event': 'system', 'content': 'İşlem başlatılıyor...'})}\n\n"
+            
+            async for event in stream_multi_agent(query):
+                # Event formatı: {"event": "...", "node": "...", "content": "..."}
+                yield f"data: {json.dumps(event)}\n\n"
+                
+            yield f"data: {json.dumps({'event': 'done', 'content': 'İşlem tamamlandı.'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'event': 'error', 'content': str(e)})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/")
 async def read_root():

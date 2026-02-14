@@ -91,3 +91,42 @@ async def run_multi_agent(query: str, mode: str = "auto") -> dict:
     except Exception as e:
         logger.error(f"Graph hatası: {e}")
         return {"answer": f"Sistem hatası: {str(e)}", "iterations": 0}
+
+async def stream_multi_agent(query: str, mode: str = "auto"):
+    """
+    Sistemi Streaming (Akış) Modunda Çalıştırır.
+    Her adımda (node) olay fırlatır.
+    """
+    from langchain_core.messages import HumanMessage
+    
+    inputs = {"messages": [HumanMessage(content=query)]}
+    
+    try:
+        # astream, her node çalıştıktan sonra çıktı verir
+        async for event in graph.astream(inputs, stream_mode="updates"):
+            for node_name, node_output in event.items():
+                # node_name: "Analyst", "LogicExpert", "MasterAgent"
+                # node_output: {"messages": [...]}
+                
+                last_message = node_output["messages"][-1]
+                content = last_message.content
+                
+                yield {
+                    "event": "node_update",
+                    "node": node_name,
+                    "content": content
+                }
+                
+                # Eğer son node MasterAgent ise, işlemi bitmiş sayabiliriz (veya graph yapısına göre END)
+                if node_name == "MasterAgent":
+                    yield {
+                        "event": "final_result",
+                        "content": content
+                    }
+                    
+    except Exception as e:
+        logger.error(f"Stream hatası: {e}")
+        yield {
+            "event": "error",
+            "content": str(e)
+        }

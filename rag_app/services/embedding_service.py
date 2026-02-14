@@ -19,7 +19,8 @@ class EmbeddingService:
         Modeli başlatır. İlk çalıştırmada modeli indirir.
         """
         print(f"Embedding modeli yükleniyor: {MODEL_NAME}...")
-        self.model = SentenceTransformer(MODEL_NAME)
+        # VRAM tasarrufu için CPU'ya zorluyoruz
+        self.model = SentenceTransformer(MODEL_NAME, device="cpu")
         print("Model hazır.")
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
