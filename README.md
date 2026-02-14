@@ -39,13 +39,13 @@ Maliyet ve performansı optimize etmek için görev karmaşıklığına göre mo
 ```mermaid
 graph TD
     User[Kullanıcı] -->|Sorgu| API[FastAPI / CLI]
-    API --> Analyst[Analist (Llama 3.1)]
+    API --> Analyst["Analist (Llama 3.1)"]
     
-    Analyst -->|RAG ile Bilgi Topla| RAG[(Vektör DB)]
+    Analyst -->|RAG ile Bilgi Topla| RAG[("Vektör DB")]
     Analyst -->|Yönlendirme| Router{Karar Mekanizması}
     
-    Router -->|Hesaplama Gerekli| Logic[Mantık Uzmanı (DeepSeek)]
-    Router -->|Genel Bilgi| Master[Master Agent (Gemini 2.5)]
+    Router -->|Hesaplama Gerekli| Logic["Mantık Uzmanı (DeepSeek)"]
+    Router -->|Genel Bilgi| Master["Master Agent (Gemini 2.5)"]
     
     Logic -->|Sonuç| Master
     
