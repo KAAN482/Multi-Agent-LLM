@@ -1,75 +1,30 @@
-"""
-Gemini model wrapper modülü.
-
-Google Gemini 2.5 Flash modelini LangChain üzerinden kullanmak için
-wrapper fonksiyon sağlar. Bulut tabanlı, karmaşık görevler için kullanılır.
-"""
-
+import os
 from langchain_google_genai import ChatGoogleGenerativeAI
-from src.config import (
-    GEMINI_API_KEY,
-    GEMINI_MODEL_NAME,
-    GEMINI_TEMPERATURE,
-    GEMINI_MAX_TOKENS,
-)
-from src.monitoring.logger import get_logger
+from langchain_core.messages import HumanMessage, SystemMessage
 
-# Modül seviyesinde logger oluşturuluyor
-logger = get_logger(__name__)
-
-
-def get_gemini_model(
-    temperature: float = None,
-    max_tokens: int = None,
-) -> ChatGoogleGenerativeAI:
-    """
-    Gemini 2.5 Flash modelini başlatır ve döndürür.
-
-    Args:
-        temperature: Yaratıcılık seviyesi (0.0-1.0). None ise config değeri kullanılır.
-        max_tokens: Maksimum üretilecek token sayısı. None ise config değeri kullanılır.
-
-    Returns:
-        ChatGoogleGenerativeAI: LangChain uyumlu Gemini model nesnesi.
-
-    Raises:
-        ValueError: API anahtarı tanımlı değilse.
-    """
-    # 1. API Anahtarı Kontrolü
-    # Gemini API anahtarı olmadan model çalışamaz, bu yüzden en başta kontrol ediyoruz.
-    if not GEMINI_API_KEY:
-        error_msg = (
-            "GEMINI_API_KEY tanımlı değil. "
-            ".env dosyasında veya ortam değişkenlerinde ayarlayın. "
-            "Ücretsiz API key: https://aistudio.google.com/app/apikey"
+class GeminiModel:
+    def __init__(self, model_name="gemini-2.5-flash", api_key=None, temperature=0.7):
+        """
+        Google Gemini model istemcisi.
+        """
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY bulunamadı!")
+            
+        self.llm = ChatGoogleGenerativeAI(
+            model=model_name,
+            google_api_key=self.api_key,
+            temperature=temperature
         )
-        logger.error(error_msg)
-        raise ValueError(error_msg)
 
-    # 2. Parametre Ayarlama
-    # Fonksiyona parametre verilmediyse config.py'daki varsayılan değerleri kullanıyoruz.
-    temp = temperature if temperature is not None else GEMINI_TEMPERATURE
-    tokens = max_tokens if max_tokens is not None else GEMINI_MAX_TOKENS
-
-    # 3. Bilgilendirme Logu
-    # Modelin hangi parametrelerle başlatıldığını logluyoruz.
-    logger.info(
-        "Gemini modeli başlatılıyor",
-        extra={
-            "model": GEMINI_MODEL_NAME,
-            "temperature": temp,
-            "max_tokens": tokens,
-        },
-    )
-
-    # 4. Model Nesnesinin Oluşturulması
-    # LangChain'in ChatGoogleGenerativeAI sınıfını kullanarak modeli başlatıyoruz.
-    model = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL_NAME,
-        google_api_key=GEMINI_API_KEY,
-        temperature=temp,
-        max_output_tokens=tokens,
-    )
-
-    logger.info("Gemini modeli başarıyla başlatıldı")
-    return model
+    def generate(self, prompt: str, system_prompt: str = None) -> str:
+        """
+        Tek seferlik üretim yapar.
+        """
+        messages = []
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
+        
+        response = self.llm.invoke(messages)
+        return response.content

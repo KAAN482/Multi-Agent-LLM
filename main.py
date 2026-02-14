@@ -13,9 +13,10 @@ Kullanım:
 import sys
 import argparse
 from src.orchestrator.graph import run_multi_agent
-from src.monitoring.logger import get_logger
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
 
 
 def print_banner():

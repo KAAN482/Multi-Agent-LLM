@@ -1,110 +1,72 @@
-# 🤖 Çok Ajanlı LLM Asistanı (Multi-Agent LLM Assistant)
+# 🤖 Multi-Agent LLM Asistanı (Hafta 2)
 
-**Gemini 2.5 Flash (Bulut)** ve **Llama 3.2 3B (Yerel/Ollama)** modellerini hibrit olarak kullanan, **LangGraph** tabanlı gelişmiş bir çok ajanlı yapay zeka asistanıdır.
+Bu proje, yerel (Llama 3.2 via Ollama) ve bulut (Gemini 2.5 Flash) modellerini hibrit olarak kullanan, **LangGraph** tabanlı gelişmiş bir çok ajanlı yapay zeka sistemidir.
 
-Bu proje, karmaşık görevleri parçalara bölerek uzman ajanlar arasında dağıtır ve en uygun maliyet/performans dengesini sağlamak için görev türüne göre model seçimi yapar.
+## 🎯 Hafta 2 Hedefleri ve Özellikleri
 
----
+### 1. Çok Ajanlı Mimari (Multi-Agent)
+Sistem, tek bir LLM yerine özelleşmiş ajanlardan oluşan bir ekip gibi çalışır:
+- **🤵 Supervisor (Yönetici):** Kullanıcı isteğini analiz eder ve işi doğru ajana (Researcher, Coder veya RAGSpecialist) atar.
+- **🔎 Researcher (Araştırmacı):** DuckDuckGo kullanarak internetten güncel bilgi toplar.
+- **💻 Coder (Yazılımcı):** Python kodu yazar ve güvenli bir ortamda çalıştırıp sonuç üretir.
+- **📚 RAG Specialist (Doküman Uzmanı):** PDF/DOCX dokümanlarından bilgi çeker.
 
-## 🚀 Özellikler
+### 2. Akıllı Model Yönlendirme (Routing)
+Maliyet ve performansı optimize etmek için görev karmaşıklığına göre model seçimi yapılır:
+- **Llama 3.2 3B (Ollama):** Basit konuşmalar, yönlendirme kararları ve özetleme için (Hızlı, Yerel).
+- **Gemini 2.5 Flash:** Karmaşık mantık yürütme, kod yazma ve derin analiz için (Akıllı, Bulut).
 
-- **Hibrit Model Mimarisi:**
-  - **Gemini 2.5 Flash:** Karmaşık analiz, kodlama ve planlama görevleri için (Yüksek zeka, geniş bağlam).
-  - **Llama 3.2 3B (Ollama):** Basit konuşma, formatlama ve kontrol görevleri için (Hızlı, ücretsiz, yerel).
-  - **Akıllı Router:** Sorguyu analiz edip en uygun modele yönlendirir.
-
-- **Uzman Ajan Kadrosu:**
-  - **🤵 Supervisor (Yönetici):** Kullanıcı isteğini analiz eder ve işi doğru ajana atar.
-  - **🔎 Researcher (Araştırmacı):** DuckDuckGo kullanarak internetten güncel bilgi toplar.
-  - **💻 Coder (Yazılımcı):** Python kodu yazar ve güvenli bir ortamda çalıştırıp sonuç üretir.
-  - **👀 Reviewer (Denetçi):** Diğer ajanların çıktılarını doğrular ve hatasız olduğundan emin olur.
-  - **📝 Formatter (Düzenleyici):** Sonuçları derleyip kullanıcıya sunulacak profesyonel formata sokar.
-
-- **Güçlü Araçlar (Tools):**
-  - **Web Search:** İnternet erişimi (DuckDuckGo).
-  - **Code Executor:** Güvenli Python kod çalıştırma ortamı (Sandbox).
-  - **MCP (Model Context Protocol):** Standartlaştırılmış tool arayüzü desteği.
-
-- **Gelişmiş Altyapı:**
-  - **LangGraph:** Döngüsel ve durum tabanlı (stateful) ajan orkestrasyonu.
-  - **Loglama:** JSON formatında detaylı loglama (istekler, hatalar, kullanılan modeller).
-  - **Monitoring:** LangFuse entegrasyonu (opsiyonel).
+### 3. Araçlar (Tools)
+- **Web Search:** İnternet erişimi (DuckDuckGo).
+- **Code Executor:** Güvenli Python kod çalıştırma ortamı (Sandbox).
+- **RAG Tool:** Yerel dokümanlarda semantik arama.
 
 ---
 
 ## 🛠️ Kurulum
 
 ### Gereksinimler
-- Python 3.10 veya üzeri
-- [Ollama](https://ollama.com/) (Yerel model için)
-- Google AI Studio API Anahtarı (Gemini için)
+- Python 3.10+
+- [Ollama](https://ollama.com/) (ve `llama3.2:3b` modeli)
+- Google AI Studio API Anahtarı
 
-### Adım 1: Projeyi Klonlayın
+### Adım 1: Kurulum ve Bağımlılıklar
 ```bash
-git clone https://github.com/KAAN482/Multi-Agent-LLM.git
+git clone <repo-url>
 cd Multi-Agent-LLM
-```
-
-### Adım 2: Sanal Ortam Oluşturun
-```bash
 python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-```
-
-### Adım 3: Bağımlılıkları Yükleyin
-```bash
+# Windows: venv\Scripts\activate
+# Mac/Linux: source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Adım 4: Yerel Modeli İndirin (Ollama)
-Ollama'nın kurulu ve çalışıyor olduğundan emin olun, ardından terminalde:
-```bash
-ollama pull llama3.2:3b
+### Adım 2: Çevresel Değişkenler (.env)
+```ini
+GEMINI_API_KEY=AIzzaSy...
+OLLAMA_BASE_URL=http://localhost:11434
 ```
 
-### Adım 5: Konfigürasyon (.env)
-`.env.example` dosyasının adını `.env` olarak değiştirin ve API anahtarınızı ekleyin:
-```ini
-# .env dosyası
-GEMINI_API_KEY=AIzaSy... (Google AI Studio'dan aldığınız anahtar)
-
-# Opsiyonel: LangFuse kullanacaksanız
-LANGFUSE_PUBLIC_KEY=pk-lf-...
-LANGFUSE_SECRET_KEY=sk-lf-...
+### Adım 3: Yerel Modeli Hazırla
+```bash
+ollama pull llama3.2:3b
 ```
 
 ---
 
 ## 💻 Kullanım
 
-Projeyi komut satırından (CLI) interaktif olarak veya tek seferlik komutlarla kullanabilirsiniz.
+### CLI Modu (Önerilen)
+Sistemi komut satırından yönetebilirsiniz:
 
-### İnteraktif Mod (Chat)
-Sürekli soru-cevap döngüsü için:
+**1. İnteraktif Sohbet:**
 ```bash
 python main.py
 ```
-Çıkmak için `q` veya `quit` yazabilirsiniz.
 
-### Tek Seferlik Sorgu
+**2. Tek Seferlik Sorgular:**
 ```bash
-python main.py "Python ile fibonacci dizisini hesaplayan bir fonksiyon yaz ve çalıştır"
-```
-
-### Mod Seçimi
-Farklı çalışma modlarını `--mode` parametresi ile seçebilirsiniz:
-
-- **auto (Varsayılan):** Göreve göre otomatik model seçer.
-- **fast:** Mümkünse yerel modeli (Ollama) kullanır. Hız önceliklidir.
-- **accurate:** Her zaman güçlü modeli (Gemini) kullanır. Doğruluk önceliklidir.
-
-Örnek:
-```bash
-python main.py --mode fast "Merhaba, nasılsın?"
-python main.py --mode accurate "Kuantum bilgisayarların geleceğini araştır"
+python main.py "Python ile fibonacci dizisini hesapla"
+python main.py "Fransa'nın başkenti neresidir?"
 ```
 
 ---
@@ -114,35 +76,18 @@ python main.py --mode accurate "Kuantum bilgisayarların geleceğini araştır"
 ```
 Multi-Agent-LLM/
 ├── src/
-│   ├── agents/          # Ajan tanımları (Supervisor, Coder, vb.)
-│   ├── models/          # LLM wrapper'ları (Gemini, Ollama)
-│   ├── tools/           # Araçlar (Web Search, Code Executor)
-│   ├── orchestrator/    # LangGraph ve State yönetimi
-│   ├── monitoring/      # Logger ve LangFuse entegrasyonu
-│   └── config.py        # Ayarlar ve sabitler
-├── tests/               # Birim ve entegrasyon testleri
-├── logs/                # Çalışma logları (JSON formatında)
-├── main.py              # Giriş noktası (CLI)
-├── requirements.txt     # Python kütüphaneleri
-└── .env                 # API anahtarları (Git'e atılmaz!)
+│   ├── agents/          # Ajan tanımları (Supervisor, Researcher, Coder...)
+│   ├── models/          # LLM wrapper'ları (Gemini, Ollama) ve Router
+│   ├── tools/           # Araçlar (Web, Kod, RAG)
+│   ├── orchestrator/    # LangGraph akış yönetimi
+│   ├── utils/           # Yardımcı fonksiyonlar (Logger vb.)
+│   └── config.py        # Ayarlar
+├── main.py              # CLI Giriş Noktası
+├── rag_app/             # (Hafta 1) RAG Backend Modülü
+├── legacy_agents/       # (Eski) Arşiv
+└── requirements.txt     # Bağımlılıklar
 ```
 
----
-
-## 🛡️ Güvenlik Notları
-- **Kod Çalıştırma:** `code_executor` modülü, tehlikeli işlemleri (dosya silme, sisteme erişme vb.) engellemek için güvenlik filtrelerine sahiptir, ancak yine de dikkatli olunmalıdır.
-- **API Anahtarları:** `.env` dosyanızı asla GitHub'a yüklemeyin (zaten `.gitignore` içinde engellenmiştir).
-
----
-
 ## 🤝 Katkıda Bulunma
-1. Bu projeyi forklayın.
-2. Yeni bir feature branch açın (`git checkout -b feature/yeni-ozellik`).
-3. Değişikliklerinizi yapın ve commit'leyin.
-4. Branch'inizi pushlayın (`git push origin feature/yeni-ozellik`).
-5. Bir Pull Request oluşturun.
-
----
-
-## 📜 Lisans
-Bu proje MIT lisansı ile lisanslanmıştır.
+- Feature branch (`feature/agents`, `feature/tools`) mantığı ile geliştirilmiştir.
+- PEP8 standartlarına uyulmuştur.

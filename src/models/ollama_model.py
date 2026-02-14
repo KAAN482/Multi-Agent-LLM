@@ -1,107 +1,28 @@
-"""
-Ollama model wrapper modülü.
-
-Yerel Llama 3.2 3B modelini Ollama üzerinden LangChain'e bağlar.
-Basit görevler için düşük gecikme süresiyle yanıt verir.
-"""
-
-import requests
+import os
 from langchain_community.chat_models import ChatOllama
-from src.config import (
-    OLLAMA_BASE_URL,
-    OLLAMA_MODEL_NAME,
-    OLLAMA_TEMPERATURE,
-    OLLAMA_MAX_TOKENS,
-)
-from src.monitoring.logger import get_logger
+from langchain_core.messages import HumanMessage, SystemMessage
 
-# Modül seviyesinde logger oluşturuluyor
-logger = get_logger(__name__)
+class OllamaModel:
+    def __init__(self, model_name="llama3.2:3b", base_url="http://localhost:11434", temperature=0.7):
+        """
+        Ollama yerel model istemcisi.
+        """
+        self.model_name = model_name
+        self.base_url = base_url
+        self.llm = ChatOllama(
+            model=model_name,
+            base_url=base_url,
+            temperature=temperature
+        )
 
-
-def check_ollama_connection() -> bool:
-    """
-    Ollama sunucusunun çalışıp çalışmadığını kontrol eder.
-
-    Returns:
-        bool: Bağlantı başarılıysa True, değilse False.
-    """
-    try:
-        # Ollama API'sine basit bir GET isteği atarak sunucunun ayakta olup olmadığını kontrol ediyoruz.
-        # Timeout süresini kısa tutuyoruz (5 sn) ki sistem yanıt beklerken kilitlenmesin.
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
+    def generate(self, prompt: str, system_prompt: str = None) -> str:
+        """
+        Tek seferlik üretim yapar.
+        """
+        messages = []
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
         
-        # 200 OK yanıtı alırsak sunucu çalışıyor demektir.
-        return response.status_code == 200
-        
-    except requests.ConnectionError:
-        # Bağlantı hatası durumunda (sunucu kapalı vb.) uyarı logu düşüyoruz.
-        logger.warning(
-            "Ollama sunucusuna bağlanılamadı",
-            extra={"url": OLLAMA_BASE_URL},
-        )
-        return False
-    except Exception as e:
-        # Beklenmeyen diğer hataları da yakalayıp logluyoruz.
-        logger.error(
-            "Ollama bağlantı kontrolünde beklenmeyen hata",
-            extra={"error": str(e)},
-        )
-        return False
-
-
-def get_ollama_model(
-    temperature: float = None,
-    max_tokens: int = None,
-) -> ChatOllama:
-    """
-    Ollama üzerinden Llama 3.2 3B modelini başlatır ve döndürür.
-
-    Args:
-        temperature: Yaratıcılık seviyesi (0.0-1.0). None ise config değeri kullanılır.
-        max_tokens: Maksimum üretilecek token sayısı. None ise config değeri kullanılır.
-
-    Returns:
-        ChatOllama: LangChain uyumlu Ollama model nesnesi.
-
-    Raises:
-        ConnectionError: Ollama sunucusu çalışmıyorsa.
-    """
-    # 1. Bağlantı Kontrolü
-    # Modeli oluşturmadan önce Ollama sunucusunun erişilebilir olduğundan emin oluyoruz.
-    if not check_ollama_connection():
-        error_msg = (
-            f"Ollama sunucusu ({OLLAMA_BASE_URL}) çalışmıyor. "
-            "Lütfen Ollama'yı başlatın: https://ollama.com\n"
-            f"Model indirme: ollama pull {OLLAMA_MODEL_NAME}"
-        )
-        # Bağlantı yoksa hata fırlatıyoruz ki çağıran kod (örn. model_selector) haberdar olsun.
-        raise ConnectionError(error_msg)
-
-    # 2. Parametre Ayarlama
-    # Varsayılan veya özel parametreleri belirliyoruz.
-    temp = temperature if temperature is not None else OLLAMA_TEMPERATURE
-    tokens = max_tokens if max_tokens is not None else OLLAMA_MAX_TOKENS
-
-    # 3. Bilgilendirme Logu
-    logger.info(
-        "Ollama modeli başlatılıyor",
-        extra={
-            "model": OLLAMA_MODEL_NAME,
-            "base_url": OLLAMA_BASE_URL,
-            "temperature": temp,
-            "max_tokens": tokens,
-        },
-    )
-
-    # 4. Model Nesnesinin Oluşturulması
-    # LangChain'in ChatOllama sınıfını kullanarak yerel modeli başlatıyoruz.
-    model = ChatOllama(
-        model=OLLAMA_MODEL_NAME,
-        base_url=OLLAMA_BASE_URL,
-        temperature=temp,
-        num_predict=tokens,
-    )
-
-    logger.info("Ollama modeli başarıyla başlatıldı")
-    return model
+        response = self.llm.invoke(messages)
+        return response.content

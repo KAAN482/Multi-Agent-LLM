@@ -6,9 +6,10 @@ API key gerektirmez. LangChain tool olarak entegre edilir.
 """
 
 from langchain_core.tools import tool
-from src.monitoring.logger import get_logger
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
 
 # duckduckgo-search kütüphanesinin yüklü olup olmadığını kontrol et
 try:
@@ -39,7 +40,6 @@ def web_search_tool(query: str, max_results: int = 5) -> str:
     )
 
     # 2. Kütüphane Kontrolü
-    # Eğer kütüphane yüklü değilse, kullanıcıya net bir hata mesajı dön
     if DDGS is None:
         error_msg = (
             "duckduckgo-search kütüphanesi yüklü değil. "
@@ -50,13 +50,15 @@ def web_search_tool(query: str, max_results: int = 5) -> str:
 
     try:
         # 3. Arama İşlemi
-        # DDGS nesnesi oluştur ve arama yap (text modu)
-        ddgs = DDGS()
+        # DDGS nesnesi oluştur ve arama yap
+        with DDGS() as ddgs:
+            # .text() metodu güncel sürümlerde generator döndürür
+            # Listeye çevirerek tüketiyoruz
+            search_results = list(ddgs.text(query, max_results=max_results))
+
         results = []
-        search_results = ddgs.text(query, max_results=max_results)
         
         # 4. Sonuçları Formatla
-        # Her bir sonucu kullanıcı dostu bir okuma formatına çevir
         for result in search_results:
             results.append(
                 f"**{result.get('title', 'Başlıksız')}**\n"
@@ -79,7 +81,7 @@ def web_search_tool(query: str, max_results: int = 5) -> str:
         return f"## Arama Sonuçları: '{query}'\n\n{formatted_results}"
 
     except Exception as e:
-        # Beklenmeyen hata durumunda (bağlantı hatası vb.)
+        # Beklenmeyen hata durumunda
         error_msg = f"Web araması sırasında hata oluştu: {str(e)}"
         logger.error(error_msg, extra={"query": query, "error": str(e)})
         return f"Hata: {error_msg}"

@@ -12,9 +12,10 @@ import tempfile
 import os
 from langchain_core.tools import tool
 from src.config import CODE_EXECUTION_TIMEOUT, BLOCKED_MODULES
-from src.monitoring.logger import get_logger
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
 
 
 def validate_code(code: str) -> tuple[bool, str]:
