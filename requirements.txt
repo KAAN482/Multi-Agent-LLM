@@ -7,12 +7,10 @@ langchain-core
 langchain-ollama
 
 # Model Providers
-ollama
-google-generativeai
+# (LangChain wrappers used instead)
 
 # Tools
 duckduckgo-search>=6.1.0
-googlesearch-python
 
 # Configuration
 python-dotenv
