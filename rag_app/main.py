@@ -13,8 +13,11 @@ from rag_app.services.vector_store import vector_store
 from rag_app.services.embedding_service import embedding_service
 from rag_app.utils.text_processing import extract_text_from_file, chunk_text
 
+# Multi-Agent Import
+from src.orchestrator.graph import run_multi_agent
+
 # FastAPI Uygulaması
-app = FastAPI(title="Akıllı Doküman Asistanı", description="RAG tabanlı doküman ve web arama asistanı", version="1.1.0")
+app = FastAPI(title="Multi-Agent LLM Asistanı", description="RAG ve Çoklu Ajan Destekli Yapay Zeka Asistanı", version="2.0.0")
 
 # Statik Dosyalar (Frontend)
 app.mount("/static", StaticFiles(directory="rag_app/static"), name="static")
@@ -23,8 +26,40 @@ app.mount("/static", StaticFiles(directory="rag_app/static"), name="static")
 class QueryRequest(BaseModel):
     question: str
 
+class AgentRequest(BaseModel):
+    query: str
+    mode: str = "auto"
+
 class FileListResponse(BaseModel):
     files: List[str]
+
+@app.post("/api/agent")
+async def run_agent(request: AgentRequest):
+    """
+    Çoklu Ajan Sistemi Endpoint'i:
+    - Kullanıcı sorgusunu alır.
+    - LangGraph tabanlı çoklu ajan sistemini çalıştırır.
+    - Sonucu döndürür.
+    """
+    try:
+        result = await run_multi_agent(request.query, mode=request.mode)
+        # Frontend için temizlenmiş yanıtı hazırla
+        answer = result.get("answer", "Yanıt yok.")
+        
+        # Eğer yanıt liste/dict ise (LangChain artefaktı), string'e çevir
+        if isinstance(answer, list) and len(answer) > 0 and isinstance(answer[0], dict):
+            answer = answer[0].get("text", str(answer))
+            
+        return {
+            "answer": answer,
+            "stats": {
+                "iterations": result.get("iterations", 0),
+                "models": result.get("models_used", []),
+                "tools": result.get("tools_called", [])
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 async def read_root():

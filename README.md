@@ -1,72 +1,118 @@
-# 🤖 Multi-Agent LLM Asistanı (Hafta 2)
+# 🧠 Multi-Agent LLM Asistanı
 
-Bu proje, yerel (Llama 3.2 via Ollama) ve bulut (Gemini 2.5 Flash) modellerini hibrit olarak kullanan, **LangGraph** tabanlı gelişmiş bir çok ajanlı yapay zeka sistemidir.
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![LangChain](https://img.shields.io/badge/LangChain-0.3-green)
+![FastAPI](https://img.shields.io/badge/FastAPI-Modern-teal)
 
-## 🎯 Hafta 2 Hedefleri ve Özellikleri
-
-### 1. Çok Ajanlı Mimari (Multi-Agent)
-Sistem, tek bir LLM yerine özelleşmiş ajanlardan oluşan bir ekip gibi çalışır:
-- **🤵 Supervisor (Yönetici):** Kullanıcı isteğini analiz eder ve işi doğru ajana (Researcher, Coder veya RAGSpecialist) atar.
-- **🔎 Researcher (Araştırmacı):** DuckDuckGo kullanarak internetten güncel bilgi toplar.
-- **💻 Coder (Yazılımcı):** Python kodu yazar ve güvenli bir ortamda çalıştırıp sonuç üretir.
-- **📚 RAG Specialist (Doküman Uzmanı):** PDF/DOCX dokümanlarından bilgi çeker.
-
-### 2. Akıllı Model Yönlendirme (Routing)
-Maliyet ve performansı optimize etmek için görev karmaşıklığına göre model seçimi yapılır:
-- **Llama 3.2 3B (Ollama):** Basit konuşmalar, yönlendirme kararları ve özetleme için (Hızlı, Yerel).
-- **Gemini 2.5 Flash:** Karmaşık mantık yürütme, kod yazma ve derin analiz için (Akıllı, Bulut).
-
-### 3. Araçlar (Tools)
-- **Web Search:** İnternet erişimi (DuckDuckGo).
-- **Code Executor:** Güvenli Python kod çalıştırma ortamı (Sandbox).
-- **RAG Tool:** Yerel dokümanlarda semantik arama.
+Bu proje, yerel (**Llama 3.2 via Ollama**) ve bulut (**Gemini 2.5 Flash**) modellerini hibrit olarak kullanan, **LangGraph** tabanlı gelişmiş bir çoklu ajan (multi-agent) yapay zeka sistemidir. Hem komut satırı (CLI) hem de modern bir Web Arayüzü ile gelir.
 
 ---
 
-## 🛠️ Kurulum
+## 🌟 Özellikler
+
+### 🤖 1. Çok Ajanlı Mimari (Multi-Agent)
+Sistem, tek bir LLM yerine uzmanlaşmış ajanlardan oluşan bir ekip gibi çalışır:
+- **🤵 Supervisor (Analist):** Kullanıcı isteğini analiz eder, RAG ile bilgi toplar ve görevi yönlendirir.
+- **🔎 Master Agent (Yönetici):** Tüm bilgileri sentezler, eksik varsa internet araması yapar ve nihai yanıtı üretir.
+- **💻 Logic Expert (Mantık/Kod):** Karmaşık hesaplamalar ve kod yazma görevlerini üstlenir.
+
+### 🧠 2. Hibrit Model Yapısı
+Maliyet ve performansı optimize etmek için görev karmaşıklığına göre model seçimi yapılır:
+- **Llama 3.2 3B (Yerel):** Hızlı analiz, yönlendirme ve özetleme.
+- **Gemini 2.5 Flash (Bulut):** Derin mantık, kod yazma ve son kullanıcı yanıtı.
+
+### 🛠️ 3. Gelişmiş Araçlar (Tools)
+- **🌍 Web Search:** DuckDuckGo ile güncel internet bilgisi (Rate limit korumalı).
+- **📚 RAG (Doküman Analizi):** PDF/DOCX/TXT dosyalarından vektör tabanlı bilgi çekme.
+- **🐍 Code Executor:** Python kodlarını güvenli bir ortamda çalıştırıp sonuç üretme.
+
+### 💻 4. Modern Web Arayüzü
+- **FastAPI** tabanlı güçlü backend.
+- **Glassmorphism** tasarımlı, karanlık mod destekli şık frontend.
+- Markdown destekli sohbet ekranı.
+- Sürükle-bırak dosya yükleme.
+
+---
+
+## 🏗️ Mimari
+
+```mermaid
+graph TD
+    User[Kullanıcı] -->|Sorgu| API[FastAPI / CLI]
+    API --> Analyst[Analist (Llama 3.1)]
+    
+    Analyst -->|RAG ile Bilgi Topla| RAG[(Vektör DB)]
+    Analyst -->|Yönlendirme| Router{Karar Mekanizması}
+    
+    Router -->|Hesaplama Gerekli| Logic[Mantık Uzmanı (DeepSeek)]
+    Router -->|Genel Bilgi| Master[Master Agent (Gemini 2.5)]
+    
+    Logic -->|Sonuç| Master
+    
+    Master -->|İnternet Araması| Web[DuckDuckGo]
+    Master -->|Nihai Yanıt| API
+```
+
+---
+
+## 🚀 Kurulum
 
 ### Gereksinimler
 - Python 3.10+
-- [Ollama](https://ollama.com/) (ve `llama3.2:3b` modeli)
+- [Ollama](https://ollama.com/) uygulaması
 - Google AI Studio API Anahtarı
 
-### Adım 1: Kurulum ve Bağımlılıklar
+### Adım 1: Depoyu Klonlayın
 ```bash
-git clone <repo-url>
+git clone https://github.com/KAAN482/Multi-Agent-LLM.git
 cd Multi-Agent-LLM
+```
+
+### Adım 2: Sanal Ortam Oluşturun
+```bash
 python -m venv venv
-# Windows: venv\Scripts\activate
-# Mac/Linux: source venv/bin/activate
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+```
+
+### Adım 3: Bağımlılıkları Yükleyin
+```bash
 pip install -r requirements.txt
 ```
 
-### Adım 2: Çevresel Değişkenler (.env)
+### Adım 4: Yerel Modeli İndirin
+```bash
+ollama pull llama3.2:3b
+```
+
+### Adım 5: Çevresel Değişkenler (.env)
+Proje ana dizininde `.env` dosyası oluşturun ve anahtarınızı ekleyin:
 ```ini
 GEMINI_API_KEY=AIzzaSy...
 OLLAMA_BASE_URL=http://localhost:11434
-```
-
-### Adım 3: Yerel Modeli Hazırla
-```bash
-ollama pull llama3.2:3b
 ```
 
 ---
 
 ## 💻 Kullanım
 
-### CLI Modu (Önerilen)
-Sistemi komut satırından yönetebilirsiniz:
+### Seçenek 1: Web Arayüzü (Önerilen)
+Web sunucusunu başlatın:
+```bash
+python -m uvicorn rag_app.main:app --reload
+```
+Ardından tarayıcınızda **http://localhost:8000** adresine gidin.
 
-**1. İnteraktif Sohbet:**
+### Seçenek 2: CLI (Komut Satırı)
+Doğrudan terminal üzerinden sohbet edin:
 ```bash
 python main.py
 ```
-
-**2. Tek Seferlik Sorgular:**
+Veya tek seferlik sorgu gönderin:
 ```bash
-python main.py "Python ile fibonacci dizisini hesapla"
-python main.py "Fransa'nın başkenti neresidir?"
+python main.py "Fenerbahçe başkanı kim?"
 ```
 
 ---
@@ -75,19 +121,22 @@ python main.py "Fransa'nın başkenti neresidir?"
 
 ```
 Multi-Agent-LLM/
-├── src/
-│   ├── agents/          # Ajan tanımları (Supervisor, Researcher, Coder...)
-│   ├── models/          # LLM wrapper'ları (Gemini, Ollama) ve Router
-│   ├── tools/           # Araçlar (Web, Kod, RAG)
-│   ├── orchestrator/    # LangGraph akış yönetimi
-│   ├── utils/           # Yardımcı fonksiyonlar (Logger vb.)
-│   └── config.py        # Ayarlar
+├── src/                 # Çekirdek Ajan Mantığı
+│   ├── agents/          # Ajan tanımları (Analyst, Master, Logic)
+│   ├── orchestrator/    # LangGraph iş akışı
+│   ├── tools/           # Araçlar (Web, RAG, Code)
+│   └── models/          # Model istemcileri
+├── rag_app/             # Web Uygulaması (FastAPI)
+│   ├── startic/         # Frontend (HTML/CSS/JS)
+│   ├── services/        # RAG ve Embedding servisleri
+│   └── main.py          # API Endpoint'leri
 ├── main.py              # CLI Giriş Noktası
-├── rag_app/             # (Hafta 1) RAG Backend Modülü
-├── legacy_agents/       # (Eski) Arşiv
-└── requirements.txt     # Bağımlılıklar
+├── requirements.txt     # Bağımlılıklar
+└── README.md            # Dokümantasyon
 ```
 
 ## 🤝 Katkıda Bulunma
-- Feature branch (`feature/agents`, `feature/tools`) mantığı ile geliştirilmiştir.
-- PEP8 standartlarına uyulmuştur.
+Bu proje açık kaynaklıdır. Katkılarınızı bekleriz! Lütfen Pull Request göndermeden önce testleri çalıştırın.
+
+---
+**Lisans:** MIT

@@ -1,38 +1,31 @@
 # LLM Framework
-langchain>=0.3.0
-langchain-google-genai>=2.0.0
-langchain-community>=0.3.0
-langgraph>=0.2.0
-langchain-core>=0.3.0
+langchain
+langchain-google-genai
+langchain-community
+langgraph
+langchain-core
+langchain-ollama
 
 # Model Providers
-ollama>=0.4.0
-google-generativeai>=0.8.0
+ollama
+google-generativeai
 
 # Tools
-duckduckgo-search>=6.0.0
+duckduckgo-search>=6.1.0
+googlesearch-python
 
 # Configuration
-python-dotenv>=1.0.0
+python-dotenv
 
-# Web Framework (RAG App)
-fastapi>=0.109.0
-uvicorn>=0.27.0
-python-multipart>=0.0.9
+# Web Framework (FastAPI)
+fastapi
+uvicorn
+python-multipart
 
 # Vector Store & Embeddings
-sentence-transformers>=2.3.0
-faiss-cpu>=1.7.4
-
-# PDF Processing
-pymupdf>=1.23.0
+sentence-transformers
+faiss-cpu
 
 # Document Processing
-python-docx>=1.0.0
-
-# Testing
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-
-# Code Quality
-flake8>=7.0.0
+pymupdf
+python-docx

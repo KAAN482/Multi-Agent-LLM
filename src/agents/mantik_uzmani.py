@@ -9,7 +9,17 @@ logger = get_logger(__name__)
 
 def logic_expert_node(state, config):
     """
-    3️⃣ 🧮 DeepSeek Coder 1.3B (Tool / Logic Agent)
+    3️⃣ 🧮 DeepSeek Coder - Mantık ve Kod Uzmanı Ajanı.
+    
+    Bu düğüm, matematiksel hesaplamalar veya mantıksal problemler için Python kodu 
+    yazarak çözüm üretir. 'code_executor' aracını kullanır.
+    
+    Args:
+        state (dict): Mevcut graph durumu.
+        config (dict): Çalıştırma konfigürasyonu.
+        
+    Returns:
+        dict: Güncellenmiş graph durumu.
     """
     logger.info("DeepSeek Logic Expert çalıştırılıyor")
     

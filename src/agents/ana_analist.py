@@ -9,7 +9,17 @@ logger = get_logger(__name__)
 
 async def analyst_node(state, config):
     """
-    1️⃣ 🦙 Llama 3.1 (Analist & RAG Uzmanı)
+    1️⃣ 🦙 Llama 3.1 - Analist ve RAG Uzmanı Ajanı.
+    
+    Bu düğüm (node), kullanıcı sorgusunu analiz eder ve RAG (Retrieval-Augmented Generation) 
+    aracını kullanarak ilgili dokümanlardan bilgi toplar.
+    
+    Args:
+        state (dict): Mevcut graph durumu.
+        config (dict): Çalıştırma konfigürasyonu.
+        
+    Returns:
+        dict: Güncellenmiş graph durumu ('messages' anahtarı ile).
     """
     logger.info("Llama Analist (Analyst) çalıştırılıyor")
     

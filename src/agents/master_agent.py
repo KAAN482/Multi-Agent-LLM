@@ -9,7 +9,17 @@ logger = get_logger(__name__)
 
 async def master_agent_node(state, config):
     """
-    2️⃣ 🌍 Gemini 2.5 Flash (Master & Web Agent)
+    2️⃣ 🌍 Gemini 2.5 Flash - Yönetici (Master) Ajan.
+    
+    Bu düğüm, diğer ajanlardan (Analist, Mantık Uzmanı) gelen raporları sentezler, 
+    gerekirse web araması yapar ve kullanıcıya nihai yanıtı sunar.
+    
+    Args:
+        state (dict): Mevcut graph durumu.
+        config (dict): Çalıştırma konfigürasyonu.
+        
+    Returns:
+        dict: Güncellenmiş graph durumu.
     """
     logger.info("Gemini Master Agent çalıştırılıyor")
     
