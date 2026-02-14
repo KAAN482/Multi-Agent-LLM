@@ -15,6 +15,7 @@ from src.config import (
 )
 from src.monitoring.logger import get_logger
 
+# Modül seviyesinde logger oluşturuluyor
 logger = get_logger(__name__)
 
 
@@ -26,15 +27,22 @@ def check_ollama_connection() -> bool:
         bool: Bağlantı başarılıysa True, değilse False.
     """
     try:
+        # Ollama API'sine basit bir GET isteği atarak sunucunun ayakta olup olmadığını kontrol ediyoruz.
+        # Timeout süresini kısa tutuyoruz (5 sn) ki sistem yanıt beklerken kilitlenmesin.
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
+        
+        # 200 OK yanıtı alırsak sunucu çalışıyor demektir.
         return response.status_code == 200
+        
     except requests.ConnectionError:
+        # Bağlantı hatası durumunda (sunucu kapalı vb.) uyarı logu düşüyoruz.
         logger.warning(
             "Ollama sunucusuna bağlanılamadı",
             extra={"url": OLLAMA_BASE_URL},
         )
         return False
     except Exception as e:
+        # Beklenmeyen diğer hataları da yakalayıp logluyoruz.
         logger.error(
             "Ollama bağlantı kontrolünde beklenmeyen hata",
             extra={"error": str(e)},
@@ -59,16 +67,23 @@ def get_ollama_model(
     Raises:
         ConnectionError: Ollama sunucusu çalışmıyorsa.
     """
+    # 1. Bağlantı Kontrolü
+    # Modeli oluşturmadan önce Ollama sunucusunun erişilebilir olduğundan emin oluyoruz.
     if not check_ollama_connection():
-        raise ConnectionError(
+        error_msg = (
             f"Ollama sunucusu ({OLLAMA_BASE_URL}) çalışmıyor. "
             "Lütfen Ollama'yı başlatın: https://ollama.com\n"
             f"Model indirme: ollama pull {OLLAMA_MODEL_NAME}"
         )
+        # Bağlantı yoksa hata fırlatıyoruz ki çağıran kod (örn. model_selector) haberdar olsun.
+        raise ConnectionError(error_msg)
 
+    # 2. Parametre Ayarlama
+    # Varsayılan veya özel parametreleri belirliyoruz.
     temp = temperature if temperature is not None else OLLAMA_TEMPERATURE
     tokens = max_tokens if max_tokens is not None else OLLAMA_MAX_TOKENS
 
+    # 3. Bilgilendirme Logu
     logger.info(
         "Ollama modeli başlatılıyor",
         extra={
@@ -79,6 +94,8 @@ def get_ollama_model(
         },
     )
 
+    # 4. Model Nesnesinin Oluşturulması
+    # LangChain'in ChatOllama sınıfını kullanarak yerel modeli başlatıyoruz.
     model = ChatOllama(
         model=OLLAMA_MODEL_NAME,
         base_url=OLLAMA_BASE_URL,

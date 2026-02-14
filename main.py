@@ -35,22 +35,31 @@ def print_banner():
 
 
 def print_result(result: dict):
-    """Sonuçları formatlanmış şekilde yazdırır."""
+    """
+    Sonuçları kullanıcı dostu formatlanmış şekilde yazdırır.
+    
+    Args:
+        result: run_multi_agent fonksiyonundan dönen sonuç sözlüğü.
+    """
     print("\n" + "=" * 60)
     print("📋 SONUÇ")
     print("=" * 60)
-    print(result["answer"])
+    print(result.get("answer", "Yanıt yok."))
     print("\n" + "-" * 60)
     print(f"📊 İstatistikler:")
-    print(f"   İterasyon sayısı: {result['iterations']}")
-    print(f"   Kullanılan modeller: {', '.join(result['models_used']) or 'Yok'}")
-    print(f"   Çağrılan tool'lar: {', '.join(result['tools_called']) or 'Yok'}")
+    print(f"   İterasyon sayısı: {result.get('iterations', 0)}")
+    
+    models = result.get("models_used", []) or ["Yok"]
+    tools = result.get("tools_called", []) or ["Yok"]
+    
+    print(f"   Kullanılan modeller: {', '.join(models)}")
+    print(f"   Çağrılan tool'lar: {', '.join(tools)}")
     print("=" * 60)
 
 
 def interactive_mode(mode: str = "auto"):
     """
-    İnteraktif mod: Kullanıcıdan sürekli sorgu alır.
+    İnteraktif mod: Kullanıcıdan sürekli sorgu alır (Chat döngüsü).
 
     Args:
         mode: Model seçim modu ("fast", "accurate", "auto").
@@ -60,17 +69,22 @@ def interactive_mode(mode: str = "auto"):
 
     while True:
         try:
-            query = input("❓ Sorunuz: ").strip()
+            # Kullanıcı girdisi al
+            try:
+                query = input("❓ Sorunuz: ").strip()
+            except EOFError:
+                break
 
             if not query:
                 print("⚠️  Lütfen bir soru yazın.\n")
                 continue
 
+            # Çıkış komutları
             if query.lower() in ("q", "quit", "exit", "çık", "çıkış"):
                 print("\n👋 Güle güle! İyi günler.")
                 break
 
-            # Mod değiştirme komutu
+            # Mod değiştirme komutu (/mode fast, /mode auto vb.)
             if query.startswith("/mode"):
                 parts = query.split()
                 if len(parts) == 2 and parts[1] in ("fast", "accurate", "auto"):
@@ -81,16 +95,21 @@ def interactive_mode(mode: str = "auto"):
                 continue
 
             print(f"\n🔄 İşleniyor... (mod: {mode})\n")
+            
+            # Sistemi çalıştır
             result = run_multi_agent(query, mode=mode)
+            
+            # Sonuçları göster
             print_result(result)
             print()
 
         except KeyboardInterrupt:
+            # Ctrl+C ile güvenli çıkış
             print("\n\n👋 Güle güle!")
             break
         except Exception as e:
             logger.error(f"Beklenmeyen hata: {e}", exc_info=True)
-            print(f"\n❌ Hata: {e}\n")
+            print(f"\n❌ Hata: {str(e)}\n")
 
 
 def main():
@@ -122,15 +141,20 @@ def main():
     args = parser.parse_args()
 
     if args.query:
-        # Tek sorgu modu
+        # Tek sorgu modu (Tek sefer çalışır ve çıkar)
         logger.info(
-            "Tek sorgu modu",
+            "Tek sorgu modu başlatılıyor",
             extra={"query": args.query, "mode": args.mode},
         )
-        result = run_multi_agent(args.query, mode=args.mode)
-        print_result(result)
+        try:
+            result = run_multi_agent(args.query, mode=args.mode)
+            print_result(result)
+        except Exception as e:
+            logger.error(f"Kritik hata: {e}", exc_info=True)
+            print(f"❌ Kritik Hata: {e}")
+            sys.exit(1)
     else:
-        # İnteraktif mod
+        # İnteraktif mod (Sürekli çalışır)
         interactive_mode(mode=args.mode)
 
 

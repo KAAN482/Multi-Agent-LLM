@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 class MCPToolRegistry:
     """
-    MCP uyumlu tool registry.
+    MCP uyumlu tool registry (Kayıt Defteri).
 
     Tool'ları merkezi bir kayıt defterinde tutar ve
     MCP protokolüne uygun şekilde çağrılmasını sağlar.
@@ -26,8 +26,8 @@ class MCPToolRegistry:
     MCP standardına göre her tool'un şu bilgileri vardır:
     - name: Tool'un benzersiz adı
     - description: Ne yaptığının açıklaması
-    - input_schema: Beklenen girdi formatı
-    - function: Çalıştırılacak fonksiyon
+    - input_schema: Beklenen girdi formatı (JSON Schema)
+    - function: Çalıştırılacak Python fonksiyonu
     """
 
     def __init__(self):
@@ -66,10 +66,10 @@ class MCPToolRegistry:
         """
         Kayıtlı tool'ların listesini döndürür (fonksiyon hariç).
 
-        MCP listTools yanıtı formatında döndürür.
+        MCP 'listTools' isteğine uygun yanıt formatında döndürür.
 
         Returns:
-            list: Tool tanımlarının listesi.
+            list: Tool tanımlarının listesi (name, description, inputSchema).
         """
         return [
             {
@@ -86,12 +86,13 @@ class MCPToolRegistry:
 
         Args:
             name: Çağrılacak tool'un adı.
-            arguments: Tool'a geçilecek argümanlar.
+            arguments: Tool'a geçilecek argümanlar (dict).
 
         Returns:
             dict: MCP yanıt formatında sonuç.
-                  {"content": [...], "isError": bool}
+                  {"content": [{"type": "text", "text": "..."}], "isError": bool}
         """
+        # 1. Tool Varlığı Kontrolü
         if name not in self._tools:
             logger.error(
                 "MCP tool bulunamadı",
@@ -114,6 +115,8 @@ class MCPToolRegistry:
                 extra={"tool_name": name, "arguments": arguments},
             )
 
+            # 2. Fonksiyonu Çalıştırma
+            # İlgili tool fonksiyonunu bul ve argümanlarla çağır
             tool_func = self._tools[name]["function"]
             result = tool_func(**arguments)
 
@@ -122,6 +125,8 @@ class MCPToolRegistry:
                 extra={"tool_name": name},
             )
 
+            # 3. Başarılı Yanıt Döndürme
+            # MCP formatında (content array içinde)
             return {
                 "content": [
                     {
@@ -133,6 +138,7 @@ class MCPToolRegistry:
             }
 
         except Exception as e:
+            # 4. Hata Yönetimi
             logger.error(
                 "MCP tool çalıştırma hatası",
                 extra={"tool_name": name, "error": str(e)},
@@ -155,12 +161,15 @@ def create_mcp_registry() -> MCPToolRegistry:
     Web arama ve kod çalıştırma tool'larını MCP formatında
     kayıt eder ve hazır bir registry döndürür.
 
+    Bu fonksiyon, uygulamanın başlangıcında çağrılmalıdır.
+
     Returns:
         MCPToolRegistry: Tool'ları kayıtlı MCP registry.
     """
     registry = MCPToolRegistry()
 
-    # Web arama tool'unu kaydet
+    # 1. Web Arama Tool'unu Kaydet
+    # Önce import et (döngüsel import olmaması için burada)
     from src.tools.web_search import web_search_tool
 
     registry.register(
@@ -184,7 +193,7 @@ def create_mcp_registry() -> MCPToolRegistry:
         function=web_search_tool.invoke,
     )
 
-    # Kod çalıştırma tool'unu kaydet
+    # 2. Kod Çalıştırma Tool'unu Kaydet
     from src.tools.code_executor import code_executor_tool
 
     registry.register(

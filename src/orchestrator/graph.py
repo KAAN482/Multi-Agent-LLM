@@ -3,6 +3,7 @@ LangGraph orkestrasyon modülü.
 
 Tüm ajanları bir LangGraph StateGraph üzerinde koordine eder.
 Supervisor'ın kararlarına göre ajanlar arası yönlendirme yapar.
+Karmaşık iş akışını (workflow) tanımlar.
 """
 
 import json
@@ -19,7 +20,8 @@ from src.monitoring.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Sonsuz döngü koruması - maksimum iterasyon
+# Sonsuz döngü koruması - maksimum iterasyon sayısı
+# Bu sayıya ulaşılınca sistem zorla durdurulur (FINISH).
 MAX_ITERATIONS = 10
 
 
@@ -34,13 +36,14 @@ def supervisor_node(state: AgentState) -> dict:
     """
     logger.info("Supervisor düğümü çalışıyor")
 
-    # Gemini modelini al (karmaşık karar verme)
+    # 1. Model Seçimi
+    # Karar verme karmaşık bir işlem olduğu için "accurate" modunda (Gemini) çalıştırılır.
     model, model_name, _ = select_model(
         state["query"], mode="accurate", task_type="planning"
     )
 
+    # 2. Zinciri Çalıştırma
     chain = create_supervisor_chain(model)
-
     result = chain.invoke({
         "messages": state["messages"],
         "search_results": state.get("search_results", "Henüz yok"),
@@ -50,10 +53,10 @@ def supervisor_node(state: AgentState) -> dict:
 
     response_text = result.content
 
-    # JSON yanıtı ayrıştır
+    # 3. JSON Yanıtını Ayrıştırma
+    # Modelin ürettiği metin içinden JSON bloğunu bulup parse ediyoruz.
     next_agent = "FINISH"
     try:
-        # JSON yanıtını bul
         json_start = response_text.find("{")
         json_end = response_text.rfind("}") + 1
         if json_start >= 0 and json_end > json_start:
@@ -70,7 +73,8 @@ def supervisor_node(state: AgentState) -> dict:
             extra={"response": response_text[:200]},
         )
 
-    # Geçerli ajan adı kontrolü
+    # 4. Geçerlilik Kontrolü
+    # Model bazen var olmayan ajan isimleri uydurabilir, kontrol ediyoruz.
     valid_agents = {"researcher", "coder", "reviewer", "formatter", "FINISH"}
     if next_agent not in valid_agents:
         logger.warning(
@@ -78,7 +82,7 @@ def supervisor_node(state: AgentState) -> dict:
         )
         next_agent = "FINISH"
 
-    # Sonsuz döngü koruması
+    # 5. Sonsuz Döngü Koruması
     iteration = state.get("iteration_count", 0) + 1
     if iteration >= MAX_ITERATIONS:
         logger.warning(
@@ -86,6 +90,7 @@ def supervisor_node(state: AgentState) -> dict:
         )
         next_agent = "FINISH"
 
+    # İstatistikleri güncelle
     model_used = state.get("model_used", [])
     model_used.append(f"supervisor:{model_name}")
 
@@ -116,6 +121,7 @@ def researcher_node(state: AgentState) -> dict:
         messages=list(state.get("messages", [])),
     )
 
+    # İstatistikler
     model_used = state.get("model_used", [])
     model_used.append(f"researcher:{model_name}")
 
@@ -218,7 +224,7 @@ def formatter_node(state: AgentState) -> dict:
         state["query"], mode="fast", task_type="formatting"
     )
 
-    # Formatlanacak içeriği topla
+    # Formatlanacak içeriği topla (tüm bulgular + inceleme notları)
     content_parts = []
     if state.get("search_results"):
         content_parts.append(f"Araştırma Sonuçları:\n{state['search_results']}")
@@ -251,16 +257,13 @@ def route_supervisor(state: AgentState) -> str:
     """
     Supervisor'ın kararına göre sonraki düğümü belirler.
 
-    Args:
-        state: Mevcut agent state.
-
-    Returns:
-        str: Sonraki düğüm adı veya END.
+    Conditional Edge (Koşullu Kenar) olarak kullanılır.
     """
     next_agent = state.get("next_agent", "FINISH")
 
     if next_agent == "FINISH":
-        # Final cevap yoksa formatter'a yönlendir
+        # Eğer iş bitti denildiyse ama henüz formatlanmış cevap yoksa
+        # Otomatik olarak formatter'a gönder
         if not state.get("final_answer"):
             return "formatter"
         return END
@@ -276,26 +279,24 @@ def create_graph() -> StateGraph:
 
     Ajanlar arası iş akışını tanımlar:
     supervisor → (researcher|coder|formatter) → reviewer → supervisor → ...
-
-    Returns:
-        Derlenmiş StateGraph nesnesi.
     """
     logger.info("LangGraph oluşturuluyor")
 
-    # Graph'ı oluştur
+    # 1. Workflow Başlatma
     workflow = StateGraph(AgentState)
 
-    # Node'ları ekle
+    # 2. Düğümleri Ekleme
     workflow.add_node("supervisor", supervisor_node)
     workflow.add_node("researcher", researcher_node)
     workflow.add_node("coder", coder_node)
     workflow.add_node("reviewer", reviewer_node)
     workflow.add_node("formatter", formatter_node)
 
-    # Başlangıç noktası
+    # 3. Giriş Noktası
     workflow.set_entry_point("supervisor")
 
-    # Supervisor'dan conditional routing
+    # 4. Yönlendirme Mantığı (Conditional Edges)
+    # Supervisor'dan sonra nereye gidileceğini 'route_supervisor' fonksiyonu belirler
     workflow.add_conditional_edges(
         "supervisor",
         route_supervisor,
@@ -308,13 +309,14 @@ def create_graph() -> StateGraph:
         },
     )
 
-    # İş ajanlarından supervisor'a geri dön (karar döngüsü)
+    # 5. Geri Dönüşler
+    # İş ajanları görevlerini bitirince tekrar Supervisor'a dönerler (Döngü)
     workflow.add_edge("researcher", "supervisor")
     workflow.add_edge("coder", "supervisor")
     workflow.add_edge("reviewer", "supervisor")
     workflow.add_edge("formatter", "supervisor")
 
-    # Graph'ı derle
+    # 6. Derleme
     graph = workflow.compile()
     logger.info("LangGraph başarıyla oluşturuldu ve derlendi")
 
@@ -327,6 +329,8 @@ def run_multi_agent(query: str, mode: str = "auto") -> dict:
 
     Kullanıcı sorgusunu alır, LangGraph'ı başlatır ve
     ajanları koordine ederek sonuç üretir.
+    
+    Tüm hata yönetimi ve istatistik toplama bu noktada yapılır.
 
     Args:
         query: Kullanıcının sorgusu.
@@ -340,6 +344,7 @@ def run_multi_agent(query: str, mode: str = "auto") -> dict:
             "iterations": int,
         }
     """
+    # Boş sorgu kontrolü
     if not query or not query.strip():
         return {
             "answer": "Hata: Boş sorgu gönderilemez. Lütfen bir soru sorun.",
@@ -353,10 +358,10 @@ def run_multi_agent(query: str, mode: str = "auto") -> dict:
         extra={"query": query, "mode": mode},
     )
 
-    # Graph'ı oluştur
+    # Graph Nesnesi
     graph = create_graph()
 
-    # Başlangıç state'i
+    # Başlangıç State'i
     initial_state = {
         "query": query,
         "task_type": "",
@@ -372,13 +377,14 @@ def run_multi_agent(query: str, mode: str = "auto") -> dict:
         "tools_called": [],
     }
 
-    # Graph'ı çalıştır
     try:
+        # Graph Execution
         final_state = graph.invoke(initial_state)
 
+        # Sonuç Hazırlama
         answer = final_state.get("final_answer", "")
         if not answer:
-            # Final cevap yoksa mevcut sonuçları topla
+            # Final cevap yoksa mevcut parçaları topla (fallback)
             parts = []
             if final_state.get("search_results"):
                 parts.append(final_state["search_results"])

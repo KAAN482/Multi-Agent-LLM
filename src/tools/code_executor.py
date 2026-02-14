@@ -21,8 +21,8 @@ def validate_code(code: str) -> tuple[bool, str]:
     """
     Kod güvenliğini kontrol eder.
 
-    Tehlikeli modül kullanımını, dosya işlemlerini ve
-    sistem çağrılarını tespit eder.
+    Tehlikeli modül kullanımını (os, subprocess vb.), dosya işlemlerini ve
+    sistem çağrılarını regex analizi ile tespit eder.
 
     Args:
         code: Kontrol edilecek Python kodu.
@@ -30,17 +30,21 @@ def validate_code(code: str) -> tuple[bool, str]:
     Returns:
         tuple: (güvenli_mi, hata_mesaji)
     """
-    # Boş kod kontrolü
+    # 1. Boş Kod Kontrolü
     if not code or not code.strip():
         return False, "Boş kod gönderildi."
 
-    # Tehlikeli modül/fonksiyon kontrolü
+    # 2. Tehlikeli Modül/Fonksiyon Kontrolü
+    # Yasaklı listesindeki (BLOCKED_MODULES) her modül için kod taraması yap
     for blocked in BLOCKED_MODULES:
-        # import blocked, from blocked, blocked( gibi kalıpları ara
+        # Regex desenleri:
+        # - import os
+        # - from os
+        # - os.system(
         patterns = [
-            rf'\bimport\s+{re.escape(blocked)}\b',
-            rf'\bfrom\s+{re.escape(blocked)}\b',
-            rf'\b{re.escape(blocked)}\s*\(',
+            rf'\bimport\s+{re.escape(blocked)}\b',   # import os
+            rf'\bfrom\s+{re.escape(blocked)}\b',     # from os import ...
+            rf'\b{re.escape(blocked)}\s*\(',         # eval(...)
         ]
         for pattern in patterns:
             if re.search(pattern, code):
@@ -49,7 +53,8 @@ def validate_code(code: str) -> tuple[bool, str]:
                     f"Engellenen modüller: {', '.join(BLOCKED_MODULES)}"
                 )
 
-    # __builtins__ manipülasyonu kontrolü
+    # 3. Built-in Fonksiyon Manipülasyonu Kontrolü
+    # __builtins__ erişimi, sandbox kaçışlarına yol açabilir.
     if "__builtins__" in code:
         return False, "Güvenlik ihlali: __builtins__ erişimine izin verilmiyor."
 
@@ -69,14 +74,15 @@ def code_executor_tool(code: str) -> str:
         code: Çalıştırılacak Python kodu.
 
     Returns:
-        str: Kodun çıktısı veya hata mesajı.
+        str: Kodun çıktısı (stdout) veya hata mesajı.
     """
     logger.info(
         "Kod çalıştırma isteği",
         extra={"code_length": len(code)},
     )
 
-    # Güvenlik kontrolü
+    # 1. Güvenlik Kontrolü
+    # Kodu çalıştırmadan ÖNCE analiz et
     is_safe, error_msg = validate_code(code)
     if not is_safe:
         logger.warning(
@@ -86,7 +92,9 @@ def code_executor_tool(code: str) -> str:
         return f"Güvenlik Hatası: {error_msg}"
 
     try:
-        # Geçici dosyaya yaz ve subprocess ile çalıştır
+        # 2. Geçici Dosya Oluşturma
+        # Kodu çalıştırmak için diskte geçici bir .py dosyası oluşturuyoruz.
+        # delete=False çünkü dosyayı kapatıp subprocess ile açacağız.
         with tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".py",
@@ -97,17 +105,20 @@ def code_executor_tool(code: str) -> str:
             tmp_path = tmp_file.name
 
         try:
+            # 3. Subprocess ile Çalıştırma
+            # Yeni bir Python process'i başlatıyoruz. Ana process'ten izole.
             result = subprocess.run(
                 ["python", tmp_path],
-                capture_output=True,
-                text=True,
-                timeout=CODE_EXECUTION_TIMEOUT,
+                capture_output=True,            # Çıktıları yakala
+                text=True,                      # String olarak döndür (byte değil)
+                timeout=CODE_EXECUTION_TIMEOUT, # Sonsuz döngü koruması
                 encoding="utf-8",
             )
 
             output = result.stdout.strip()
             error = result.stderr.strip()
 
+            # 4. Hata Kontrolü (Return Code)
             if result.returncode != 0:
                 logger.warning(
                     "Kod çalıştırma hatası",
@@ -115,8 +126,9 @@ def code_executor_tool(code: str) -> str:
                 )
                 return f"Çalıştırma Hatası:\n{error}"
 
+            # 5. Boş Çıktı Kontrolü
             if not output and not error:
-                return "Kod başarıyla çalıştı ancak çıktı üretmedi."
+                return "Kod başarıyla çalıştı ancak çıktı üretmedi (print kullandınız mı?)."
 
             logger.info(
                 "Kod başarıyla çalıştırıldı",
@@ -125,13 +137,15 @@ def code_executor_tool(code: str) -> str:
             return f"Çıktı:\n{output}"
 
         finally:
-            # Geçici dosyayı temizle
+            # 6. Temizlik
+            # İşimiz bitince veya hata olsa bile geçici dosyayı sil
             try:
                 os.unlink(tmp_path)
             except OSError:
                 pass
 
     except subprocess.TimeoutExpired:
+        # Zaman aşımı hatasını özel olarak işle
         logger.warning(
             "Kod çalıştırma zaman aşımı",
             extra={"timeout": CODE_EXECUTION_TIMEOUT},
@@ -142,6 +156,7 @@ def code_executor_tool(code: str) -> str:
         )
 
     except Exception as e:
+        # Diğer tüm hatalar
         error_msg = f"Beklenmeyen hata: {str(e)}"
         logger.error(error_msg, exc_info=True)
         return f"Hata: {error_msg}"

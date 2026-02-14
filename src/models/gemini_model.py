@@ -14,6 +14,7 @@ from src.config import (
 )
 from src.monitoring.logger import get_logger
 
+# Modül seviyesinde logger oluşturuluyor
 logger = get_logger(__name__)
 
 
@@ -34,16 +35,24 @@ def get_gemini_model(
     Raises:
         ValueError: API anahtarı tanımlı değilse.
     """
+    # 1. API Anahtarı Kontrolü
+    # Gemini API anahtarı olmadan model çalışamaz, bu yüzden en başta kontrol ediyoruz.
     if not GEMINI_API_KEY:
-        raise ValueError(
+        error_msg = (
             "GEMINI_API_KEY tanımlı değil. "
             ".env dosyasında veya ortam değişkenlerinde ayarlayın. "
             "Ücretsiz API key: https://aistudio.google.com/app/apikey"
         )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
+    # 2. Parametre Ayarlama
+    # Fonksiyona parametre verilmediyse config.py'daki varsayılan değerleri kullanıyoruz.
     temp = temperature if temperature is not None else GEMINI_TEMPERATURE
     tokens = max_tokens if max_tokens is not None else GEMINI_MAX_TOKENS
 
+    # 3. Bilgilendirme Logu
+    # Modelin hangi parametrelerle başlatıldığını logluyoruz.
     logger.info(
         "Gemini modeli başlatılıyor",
         extra={
@@ -53,6 +62,8 @@ def get_gemini_model(
         },
     )
 
+    # 4. Model Nesnesinin Oluşturulması
+    # LangChain'in ChatGoogleGenerativeAI sınıfını kullanarak modeli başlatıyoruz.
     model = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL_NAME,
         google_api_key=GEMINI_API_KEY,

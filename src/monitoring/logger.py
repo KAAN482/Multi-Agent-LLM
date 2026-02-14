@@ -24,12 +24,15 @@ class JsonFormatter(logging.Formatter):
     """
     Log kayıtlarını JSON formatında biçimlendirir.
 
+    Modern log yönetim sistemleri (ELK, Datadog, vb.) ve
+    kolay debug için JSON formatı tercih edilir.
+
     Her log kaydı şu alanları içerir:
     - timestamp: ISO 8601 formatında zaman damgası
     - level: Log seviyesi (INFO, WARNING, ERROR vb.)
     - logger: Logger adı
     - message: Log mesajı
-    - extra: Ek bilgiler (model, tool, hata detayları vb.)
+    - extra: Ek bilgiler (context)
     """
 
     def format(self, record: logging.LogRecord) -> str:
@@ -41,7 +44,7 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        # Extra alanları ekle (standart LogRecord alanları hariç)
+        # Standart logging alanlarını çıkar, geri kalanları 'extra' olarak ekle
         standard_attrs = {
             "name", "msg", "args", "created", "relativeCreated",
             "exc_info", "exc_text", "stack_info", "lineno", "funcName",
@@ -58,7 +61,7 @@ class JsonFormatter(logging.Formatter):
         if extra:
             log_data["extra"] = extra
 
-        # Hata bilgisi varsa ekle
+        # Exception bilgisi varsa yapılandırılmış olarak ekle
         if record.exc_info and record.exc_info[1]:
             log_data["exception"] = {
                 "type": record.exc_info[0].__name__,
@@ -72,7 +75,9 @@ def get_logger(name: str) -> logging.Logger:
     """
     İsimlendirilmiş bir logger oluşturur veya mevcut olanı döndürür.
 
-    Konsola ve dosyaya JSON formatında log yazar.
+    Çift hedefli (Dual-target) logging yapar:
+    1. Konsol: İnsan tarafından okunabilir basit format.
+    2. Dosya: Makine tarafından okunabilir JSON formatı.
 
     Args:
         name: Logger adı (genellikle modül adı __name__).
@@ -82,13 +87,13 @@ def get_logger(name: str) -> logging.Logger:
     """
     logger = logging.getLogger(name)
 
-    # Logger zaten yapılandırılmışsa tekrar yapılandırma
+    # Logger zaten yapılandırılmışsa tekrar yapılandırma (Duplicate log önleme)
     if logger.handlers:
         return logger
 
     logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
 
-    # ─── Konsol Handler ─────────────────────────────────────────────────
+    # 1. Konsol Handler (Okunabilir Format)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_formatter = logging.Formatter(
@@ -98,15 +103,16 @@ def get_logger(name: str) -> logging.Logger:
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
-    # ─── Dosya Handler ──────────────────────────────────────────────────
+    # 2. Dosya Handler (JSON Format)
     try:
         _ensure_log_dir()
         log_file = os.path.join(LOG_DIR, "multi_agent.log")
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging.DEBUG) # Dosyaya daha detaylı yaz
         file_handler.setFormatter(JsonFormatter())
         logger.addHandler(file_handler)
     except Exception as e:
+        # Dosya sistemine yazılamazsa sadece konsola yazmaya devam et
         logger.warning(f"Log dosyası oluşturulamadı: {e}")
 
     return logger
@@ -116,8 +122,8 @@ def get_langfuse_handler() -> Optional[object]:
     """
     LangFuse callback handler oluşturur (opsiyonel/bonus).
 
-    LangFuse yapılandırılmamışsa None döndürür.
-    LangFuse, LangChain callback handler olarak kullanılır.
+    LangFuse, LLM uygulamaları için gözlemlenebilirlik (observability) platformudur.
+    Proje konfigürasyonunda API anahtarları varsa aktifleşir.
 
     Returns:
         Optional: LangFuse CallbackHandler veya None.
@@ -125,6 +131,7 @@ def get_langfuse_handler() -> Optional[object]:
     try:
         from src.config import LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST
 
+        # Anahtarlar eksikse devre dışı bırak
         if not LANGFUSE_PUBLIC_KEY or not LANGFUSE_SECRET_KEY:
             return None
 
@@ -144,6 +151,7 @@ def get_langfuse_handler() -> Optional[object]:
         return handler
 
     except ImportError:
+        # Kütüphane yüklü değilse sessizce geç
         return None
     except Exception:
         return None

@@ -29,7 +29,7 @@ from src.monitoring.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Geçerli model seçim modları
+# Geçerli model seçim modları için tip tanımı
 ModelMode = Literal["fast", "accurate", "auto"]
 
 
@@ -38,7 +38,7 @@ def classify_task(query: str) -> str:
     Sorgu metnini analiz ederek görev türünü belirler.
 
     Basit anahtar kelime eşleştirmesi ile görev sınıflandırması yapar.
-    Daha gelişmiş bir sınıflandırıcı ile değiştirilebilir.
+    Daha gelişmiş bir sınıflandırıcı ile değiştirilebilir (örn. Zero-shot classification).
 
     Args:
         query: Kullanıcının sorgu metni.
@@ -46,14 +46,17 @@ def classify_task(query: str) -> str:
     Returns:
         str: Görev türü (research, coding, simple_qa, greeting, vb.)
     """
+    # Sorguyu küçük harfe çevirerek eşleştirmeyi kolaylaştırıyoruz.
     query_lower = query.lower().strip()
 
-    # Selamlama kontrolü
+    # 1. Selamlama Kontrolü
+    # Basit konuşma başlatıcıları yerel modele yönlendirmek için tespit ediyoruz.
     greetings = ["merhaba", "selam", "hello", "hi", "hey", "nasılsın", "günaydın"]
     if any(query_lower.startswith(g) for g in greetings):
         return "greeting"
 
-    # Kodlama görevi kontrolü
+    # 2. Kodlama Görevi Kontrolü
+    # Kod yazma isteği belirten anahtar kelimeleri arıyoruz.
     code_keywords = [
         "kod", "code", "python", "javascript", "hesapla", "calculate",
         "fonksiyon", "function", "algoritma", "program", "script",
@@ -62,7 +65,8 @@ def classify_task(query: str) -> str:
     if any(kw in query_lower for kw in code_keywords):
         return "coding"
 
-    # Araştırma görevi kontrolü
+    # 3. Araştırma Görevi Kontrolü
+    # Bilgi arama veya analiz gerektiren kelimeleri arıyoruz.
     research_keywords = [
         "araştır", "research", "bul", "find", "nedir", "what is",
         "karşılaştır", "compare", "analiz", "analyze", "incele",
@@ -71,7 +75,8 @@ def classify_task(query: str) -> str:
     if any(kw in query_lower for kw in research_keywords):
         return "research"
 
-    # Formatlama/düzenleme görevi kontrolü
+    # 4. Formatlama/Düzenleme Görevi Kontrolü
+    # Metin düzenleme işlerini tespit ediyoruz.
     format_keywords = [
         "formatla", "format", "düzenle", "edit", "listele", "list",
         "tablo", "table", "madde", "bullet",
@@ -79,11 +84,12 @@ def classify_task(query: str) -> str:
     if any(kw in query_lower for kw in format_keywords):
         return "formatting"
 
-    # Uzun metin → karmaşık görev olarak kabul et
+    # 5. Uzunluk Kontrolü
+    # Eğer sorgu çok uzunsa (eşik değerinden fazla), bunu karmaşık bir analiz görevi sayıyoruz.
     if len(query) > COMPLEXITY_THRESHOLD_CHARS:
         return "analysis"
 
-    # Varsayılan: basit soru-cevap
+    # Varsayılan: Hiçbir kategoriye girmezse basit soru-cevap olarak işaretliyoruz.
     return "simple_qa"
 
 
@@ -113,10 +119,12 @@ def select_model(
             f"Geçerli modlar: {valid_modes}"
         )
 
-    # Görev türünü belirle
+    # 1. Görev Türünü Belirleme
+    # Eğer dışarıdan bir görev türü verilmediyse, classify_task ile biz belirliyoruz.
     if task_type is None:
         task_type = classify_task(query)
 
+    # Seçim bağlamını logluyoruz (monitoring için önemli)
     logger.info(
         "Model seçimi yapılıyor",
         extra={
@@ -126,9 +134,12 @@ def select_model(
         },
     )
 
-    # ─── Mod bazlı seçim ────────────────────────────────────────────────
+    # 2. Mod Bazlı Seçim Mantığı
+
+    # -- Fast (Hız) Modu --
+    # Kullanıcı hızı önceliklendirdiyse, mümkünse yerel Ollama modelini kullanıyoruz.
+    # Ancak Ollama çalışmıyorsa mecburen Gemini'ye (bulut) geçiyoruz.
     if mode == "fast":
-        # Hız öncelikli: Ollama varsa yerel, yoksa Gemini
         model, model_name = _try_ollama_first()
         logger.info(
             "Model seçildi (hız modu)",
@@ -136,8 +147,9 @@ def select_model(
         )
         return model, model_name, task_type
 
+    # -- Accurate (Doğruluk) Modu --
+    # Kullanıcı doğruluğu önceliklendirdiyse, her zaman daha yetenekli olan Gemini modelini seçiyoruz.
     if mode == "accurate":
-        # Doğruluk öncelikli: Her zaman Gemini
         model = get_gemini_model()
         model_name = "gemini-2.5-flash"
         logger.info(
@@ -146,14 +158,20 @@ def select_model(
         )
         return model, model_name, task_type
 
-    # ─── Otomatik seçim (auto) ──────────────────────────────────────────
+    # -- Auto (Otomatik) Mod --
+    # Varsayılan mod. Görev türüne göre en mantıklı kararı veriyoruz.
+    
+    # Basit görevler -> Yerel Model (Ollama)
     if task_type in SIMPLE_TASK_TYPES:
         model, model_name = _try_ollama_first()
+        
+    # Karmaşık görevler -> Bulut Model (Gemini)
     elif task_type in COMPLEX_TASK_TYPES:
         model = get_gemini_model()
         model_name = "gemini-2.5-flash"
+        
     else:
-        # Bilinmeyen görev türü → güvenli tarafta kal, Gemini kullan
+        # Bilinmeyen bir görev türüyle karşılaşırsak, güvenli tarafta kalıp güçlü modeli seçiyoruz.
         model = get_gemini_model()
         model_name = "gemini-2.5-flash"
 
@@ -166,21 +184,25 @@ def select_model(
 
 def _try_ollama_first() -> tuple[BaseChatModel, str]:
     """
-    Önce Ollama'yı dener, bağlantı yoksa Gemini'ye düşer.
+    Önce Ollama'yı dener, bağlantı yoksa Gemini'ye fallback yapar.
 
     Returns:
         tuple: (model_nesnesi, model_adi)
     """
+    # Ollama bağlantısını kontrol et
     if check_ollama_connection():
         try:
+            # Bağlantı varsa modeli oluştur
             model = get_ollama_model()
             return model, "llama3.2:3b"
         except Exception as e:
+            # Beklenmedik bir hata olursa uyarı ver ve Gemini'ye geç
             logger.warning(
                 "Ollama başlatılamadı, Gemini'ye geçiliyor",
                 extra={"error": str(e)},
             )
 
+    # Ollama yoksa veya hata verdiyse Gemini'yi kullan
     logger.info("Ollama kullanılamıyor, Gemini modeli seçildi (fallback)")
     model = get_gemini_model()
     return model, "gemini-2.5-flash"

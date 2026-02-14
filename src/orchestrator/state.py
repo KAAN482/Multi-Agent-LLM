@@ -20,18 +20,18 @@ class AgentState(TypedDict):
     LangGraph, bu state'i otomatik olarak yönetir.
 
     Alanlar:
-        query: Kullanıcının orijinal sorgusu.
-        task_type: Otomatik tespit edilen görev türü.
-        messages: Mesaj geçmişi (LangGraph tarafından birleştirilir).
-        search_results: Araştırmacı ajanın bulduğu sonuçlar.
-        code_results: Kodlayıcı ajanın çalıştırdığı kod sonuçları.
-        review_notes: Gözden geçirici ajanın notları.
+        query: Kullanıcının orijinal sorgusu. Değişmez.
+        task_type: Classifier tarafından tespit edilen görev türü.
+        messages: Mesaj geçmişi. LangGraph 'add_messages' reducer'ı ile listeye eklenir.
+        search_results: Researcher ajanın bulduğu ham sonuçlar.
+        code_results: Coder ajanın çalıştırdığı kod ve çıktısı.
+        review_notes: Reviewer ajanın notları.
         review_status: İnceleme durumu (approved/needs_revision).
-        final_answer: Formatlanmış son cevap.
-        next_agent: Bir sonraki çalışacak ajan.
-        iteration_count: Mevcut iterasyon sayısı (sonsuz döngü koruması).
-        model_used: Kullanılan modellerin listesi.
-        tools_called: Çağrılan tool'ların listesi.
+        final_answer: Formatter tarafından üretilen son cevap.
+        next_agent: Supervisor tarafından belirlenen bir sonraki ajan.
+        iteration_count: Döngü sayısı. Sonsuz döngüden kaçınmak için artırılır.
+        model_used: Debug/Monitoring için kullanılan modellerin listesi.
+        tools_called: Debug/Monitoring için çağrılan tool'ların listesi.
     """
     query: str
     task_type: str
