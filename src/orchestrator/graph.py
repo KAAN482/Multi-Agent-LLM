@@ -67,7 +67,7 @@ workflow.add_edge("MasterAgent", END)
 # Compile
 graph = workflow.compile()
 
-def run_multi_agent(query: str, mode: str = "auto") -> dict:
+async def run_multi_agent(query: str, mode: str = "auto") -> dict:
     """
     Sistemi Çalıştıran Ana Fonksiyon.
     """
@@ -76,7 +76,7 @@ def run_multi_agent(query: str, mode: str = "auto") -> dict:
     inputs = {"messages": [HumanMessage(content=query)]}
     
     try:
-        result = graph.invoke(inputs)
+        result = await graph.ainvoke(inputs)
         
         # Son mesaj MasterAgent'tan gelir
         final_message = result["messages"][-1]

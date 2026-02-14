@@ -12,6 +12,7 @@ Kullanım:
 
 import sys
 import argparse
+import asyncio
 from src.orchestrator.graph import run_multi_agent
 from src.utils.logger import get_logger
 
@@ -23,13 +24,13 @@ def print_banner():
     """Uygulama başlangıç banner'ını yazdırır."""
     banner = """
 ╔══════════════════════════════════════════════════════════════╗
-║           🤖 Multi-Agent LLM Asistanı v1.0 🤖              ║
+║           Multi-Agent LLM Asistanı v1.0                      ║
 ║                                                              ║
 ║  Modeller: Gemini 2.5 Flash (Bulut) + Llama 3.2 3B (Yerel)  ║
 ║  Ajanlar:  Supervisor | Researcher | Coder | Reviewer | Fmt  ║
-║  Araçlar:  Web Arama | Kod Çalıştırma | MCP                 ║
+║  Araclar:  Web Arama | Kod Calistirma | MCP                 ║
 ║                                                              ║
-║  Çıkmak için 'q' veya 'quit' yazın                          ║
+║  Cikmak icin 'q' veya 'quit' yazin                          ║
 ╚══════════════════════════════════════════════════════════════╝
 """
     print(banner)
@@ -43,22 +44,22 @@ def print_result(result: dict):
         result: run_multi_agent fonksiyonundan dönen sonuç sözlüğü.
     """
     print("\n" + "=" * 60)
-    print("📋 SONUÇ")
+    print("[SONUC]")
     print("=" * 60)
     print(result.get("answer", "Yanıt yok."))
     print("\n" + "-" * 60)
-    print(f"📊 İstatistikler:")
-    print(f"   İterasyon sayısı: {result.get('iterations', 0)}")
+    print(f"[Istatistikler]:")
+    print(f"   Iterasyon sayisi: {result.get('iterations', 0)}")
     
     models = result.get("models_used", []) or ["Yok"]
     tools = result.get("tools_called", []) or ["Yok"]
     
-    print(f"   Kullanılan modeller: {', '.join(models)}")
-    print(f"   Çağrılan tool'lar: {', '.join(tools)}")
+    print(f"   Kullanilan modeller: {', '.join(models)}")
+    print(f"   Cagrilan tool'lar: {', '.join(tools)}")
     print("=" * 60)
 
 
-def interactive_mode(mode: str = "auto"):
+async def interactive_mode(mode: str = "auto"):
     """
     İnteraktif mod: Kullanıcıdan sürekli sorgu alır (Chat döngüsü).
 
@@ -72,7 +73,7 @@ def interactive_mode(mode: str = "auto"):
         try:
             # Kullanıcı girdisi al
             try:
-                query = input("❓ Sorunuz: ").strip()
+                query = input("[?] Sorunuz: ").strip()
             except EOFError:
                 break
 
@@ -82,7 +83,7 @@ def interactive_mode(mode: str = "auto"):
 
             # Çıkış komutları
             if query.lower() in ("q", "quit", "exit", "çık", "çıkış"):
-                print("\n👋 Güle güle! İyi günler.")
+                print("\n[!] Gule gule! Iyi gunler.")
                 break
 
             # Mod değiştirme komutu (/mode fast, /mode auto vb.)
@@ -90,15 +91,15 @@ def interactive_mode(mode: str = "auto"):
                 parts = query.split()
                 if len(parts) == 2 and parts[1] in ("fast", "accurate", "auto"):
                     mode = parts[1]
-                    print(f"✅ Mod değiştirildi: {mode}\n")
+                    print(f"[+] Mod degistirildi: {mode}\n")
                 else:
-                    print("⚠️  Kullanım: /mode [fast|accurate|auto]\n")
+                    print("[!] Kullanım: /mode [fast|accurate|auto]\n")
                 continue
 
-            print(f"\n🔄 İşleniyor... (mod: {mode})\n")
+            print(f"\n[*] Isleniyor... (mod: {mode})\n")
             
             # Sistemi çalıştır
-            result = run_multi_agent(query, mode=mode)
+            result = await run_multi_agent(query, mode=mode)
             
             # Sonuçları göster
             print_result(result)
@@ -106,11 +107,11 @@ def interactive_mode(mode: str = "auto"):
 
         except KeyboardInterrupt:
             # Ctrl+C ile güvenli çıkış
-            print("\n\n👋 Güle güle!")
+            print("\n\n[!] Gule gule!")
             break
         except Exception as e:
             logger.error(f"Beklenmeyen hata: {e}", exc_info=True)
-            print(f"\n❌ Hata: {str(e)}\n")
+            print(f"\n[!] Hata: {str(e)}\n")
 
 
 def main():
@@ -148,15 +149,15 @@ def main():
             extra={"query": args.query, "mode": args.mode},
         )
         try:
-            result = run_multi_agent(args.query, mode=args.mode)
+            result = asyncio.run(run_multi_agent(args.query, mode=args.mode))
             print_result(result)
         except Exception as e:
             logger.error(f"Kritik hata: {e}", exc_info=True)
-            print(f"❌ Kritik Hata: {e}")
+            print(f"[!] Kritik Hata: {e}")
             sys.exit(1)
     else:
         # İnteraktif mod (Sürekli çalışır)
-        interactive_mode(mode=args.mode)
+        asyncio.run(interactive_mode(mode=args.mode))
 
 
 if __name__ == "__main__":

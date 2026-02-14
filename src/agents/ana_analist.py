@@ -37,7 +37,7 @@ async def analyst_node(state, config):
     """
     
     # LangGraph create_react_agent kullanımı
-    agent = create_react_agent(model, tools, state_modifier=system_prompt)
+    agent = create_react_agent(model, tools, prompt=system_prompt)
     
     # "messages" key'ini kullanarak invoke ediyoruz
     # create_react_agent, input olarak {"messages": ...} bekler

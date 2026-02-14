@@ -46,7 +46,7 @@ async def master_agent_node(state, config):
     4. Sonucu akademik, yapılandırılmış ve detaylı bir formatta kullanıcıya sun.
     """
     
-    agent = create_react_agent(model, tools, state_modifier=system_prompt)
+    agent = create_react_agent(model, tools, prompt=system_prompt)
     
     # Master için yeni bir mesaj dizisi oluşturuyoruz.
     # Sadece final_query'i gönderiyoruz çünkü context zaten içinde.

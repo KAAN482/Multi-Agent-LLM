@@ -30,7 +30,7 @@ def logic_expert_node(state, config):
     """
     
     # create_react_agent (Senkron invoke için)
-    agent = create_react_agent(model, tools, state_modifier=system_prompt)
+    agent = create_react_agent(model, tools, prompt=system_prompt)
     
     response = agent.invoke({"messages": messages})
     
