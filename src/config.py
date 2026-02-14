@@ -11,7 +11,7 @@ BLOCKED_MODULES = [
 
 # Model İsimleri (Sabitler)
 MODEL_LLAMA_ANALYZER = "llama3.1:latest"        # RAG & Analiz
-MODEL_DEEPSEEK_CODER = "deepseek-coder:1.3b"    # Mantık & Kod
+MODEL_DEEPSEEK_CODER = "llama3.1:latest"    # Mantık & Kod
 MODEL_GEMINI_MASTER = "gemini-2.5-flash"        # Master & Web
 
 # RAG Ayarları

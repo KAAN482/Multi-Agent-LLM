@@ -53,8 +53,8 @@ def web_search_tool(query: str, max_results: int = 5) -> str:
         # DDGS nesnesi oluştur ve arama yap
         with DDGS() as ddgs:
             # .text() metodu güncel sürümlerde generator döndürür
-            # Listeye çevirerek tüketiyoruz
-            search_results = list(ddgs.text(query, max_results=max_results))
+            # backend="html" daha dayanıklı
+            search_results = list(ddgs.text(query, max_results=max_results, backend="html"))
 
         results = []
         

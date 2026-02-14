@@ -18,21 +18,25 @@ llm = ChatGoogleGenerativeAI(
 SIMILARITY_THRESHOLD = 0.75  # E5 için benzerlik eşiği
 
 async def process_query(question: str):
-    # 1. Embedding oluştur
-    print(f"Sorgu işleniyor: {question}")
-    query_vec = embedding_service.embed_query(question)
-    
-    # 2. Vektör Araması (Retrieve)
-    results = vector_store.search(query_vec, k=3)
-    
-    # Skor loglama
-    print(f"Bulunan Doküman Sayısı: {len(results)}")
-    for r in results:
-        print(f" - {r['filename']} (Skor: {r['score']:.4f})")
-    
-    # 3. Sonuçları Değerlendir
-    relevant_docs = [r for r in results if r['score'] > SIMILARITY_THRESHOLD]
-    
+    try:
+        # 1. Embedding oluştur
+        print(f"Sorgu işleniyor: {question}")
+        query_vec = embedding_service.embed_query(question)
+        
+        # 2. Vektör Araması (Retrieve)
+        results = vector_store.search(query_vec, k=3)
+        
+        # Skor loglama
+        print(f"Bulunan Doküman Sayısı: {len(results)}")
+        for r in results:
+            print(f" - {r['filename']} (Skor: {r['score']:.4f})")
+        
+        # 3. Sonuçları Değerlendir
+        relevant_docs = [r for r in results if r['score'] > SIMILARITY_THRESHOLD]
+    except Exception as e:
+        print(f"Retrieval/Embedding hatası: {e}")
+        relevant_docs = []
+
     sources = []
     context = ""
     
@@ -50,6 +54,7 @@ async def process_query(question: str):
         Soru: {question}
         
         Cevap:"""
+         
         
     else:
         # Doküman bulunamadı -> Web Search (Fallback)
@@ -57,7 +62,8 @@ async def process_query(question: str):
         try:
             from duckduckgo_search import DDGS
             with DDGS() as ddgs:
-                results = list(ddgs.text(question, max_results=3))
+                # backend="html" daha dayanıklı
+                results = list(ddgs.text(question, max_results=3, backend="html"))
                 if results:
                     search_context = "\n".join([f"{r['title']}: {r['body']}" for r in results])
                     context = search_context

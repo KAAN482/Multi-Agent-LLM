@@ -30,4 +30,5 @@ async def rag_tool(query: str) -> str:
         return formatted_response
     except Exception as e:
         logger.error("RAG tool hatası", extra={"error": str(e)})
+        print(f"DEBUG: RAG Tool Exception: {e}")
         return f"RAG Hatası: {str(e)}"

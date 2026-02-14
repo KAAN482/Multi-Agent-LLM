@@ -1,5 +1,9 @@
 from sentence_transformers import SentenceTransformer
 from typing import List
+import logging
+
+# Transformer uyarılarını gizle
+logging.getLogger("transformers").setLevel(logging.ERROR)
 
 # Model İsmi (Sabit)
 # Model İsmi (Sabit)

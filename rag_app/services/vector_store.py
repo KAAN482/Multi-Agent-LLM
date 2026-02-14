@@ -6,7 +6,7 @@ import numpy as np
 # Sabitler
 INDEX_FILE = "faiss_index.bin"
 METADATA_FILE = "metadata.pkl"
-DIMENSION = 768  # E5-base boyutu
+DIMENSION = 384  # all-MiniLM-L6-v2 boyutu
 
 class VectorStore:
     """

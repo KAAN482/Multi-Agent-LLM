@@ -46,7 +46,17 @@ def print_result(result: dict):
     print("\n" + "=" * 60)
     print("[SONUC]")
     print("=" * 60)
-    print(result.get("answer", "Yanıt yok."))
+    answer = result.get("answer", "Yanıt yok.")
+    
+    # Eğer yanıt liste/dict formatındaysa (LangChain bazen böyle döndürebilir), temizle
+    if isinstance(answer, list) and len(answer) > 0 and isinstance(answer[0], dict):
+        text_content = answer[0].get("text", "")
+        if text_content:
+            print(text_content)
+        else:
+            print(str(answer))
+    else:
+        print(str(answer))
     print("\n" + "-" * 60)
     print(f"[Istatistikler]:")
     print(f"   Iterasyon sayisi: {result.get('iterations', 0)}")
