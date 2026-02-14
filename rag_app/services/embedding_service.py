@@ -2,7 +2,8 @@ from sentence_transformers import SentenceTransformer
 from typing import List
 
 # Model İsmi (Sabit)
-MODEL_NAME = "intfloat/multilingual-e5-base"
+# Model İsmi (Sabit)
+MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 class EmbeddingService:
     """
@@ -23,8 +24,7 @@ class EmbeddingService:
         E5 modeli için dokümanlara 'passage: ' öneki eklenmesi önerilir.
         """
         # E5 modeli için prefix ekleyelim
-        formatted_texts = [f"passage: {t}" for t in texts]
-        embeddings = self.model.encode(formatted_texts, normalize_embeddings=True)
+        embeddings = self.model.encode(texts, normalize_embeddings=True)
         return embeddings.tolist()
 
     def embed_query(self, query: str) -> List[float]:
@@ -32,8 +32,7 @@ class EmbeddingService:
         Sorguyu vektörleştirir.
         E5 modeli için sorgulara 'query: ' öneki eklenmesi gerekir.
         """
-        formatted_query = f"query: {query}"
-        embedding = self.model.encode(formatted_query, normalize_embeddings=True)
+        embedding = self.model.encode(query, normalize_embeddings=True)
         return embedding.tolist()
 
 # Singleton instance (Uygulama genelinde tek bir model instance'ı kullanılır)
